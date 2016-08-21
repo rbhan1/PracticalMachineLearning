@@ -1,0 +1,134 @@
+Practical Machine Learning Course Project 
+================================================
+Radhika Bhange
+
+August 18,2016
+
+Background
+================================
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively.These type of devices are part of the quantified self movement a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+Goal
+=============================================
+The goal of your project is to predict the manner in which they did the exercise. This is the “classe” variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+The information is available from the website here: http://groupware.les.inf.puc-rio.br/har
+
+How the model is built
+============================
+Our outcome variable is classe, a factor variable with 5 levels. For this data set, “participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in 5 different fashions:
+
+exactly according to the specification-(Class A)
+
+throwing the elbows to the front-(Class B)
+
+lifting the dumbbell only halfway-(Class C)
+
+lowering the dumbbell only halfway-(Class D)
+
+throwing the hips to the front-(Class E)
+
+Prediction evaluations will be based on maximizing the accuracy and minimizing the out-of-sample error. All other available variables after cleaning will be used for prediction. Two models will be tested using decision tree and random forest algorithms. The model with the highest accuracy will be chosen as our final model.
+
+Loading and cleaning the Data
+===============================
+The training data for this project are available here: [https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv]
+
+The test data are available here: [https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv]
+
+The data for this project come from this source: [http://groupware.les.inf.puc-rio.br/har]. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+It’s important to install and read the library package and set a seed. Then, the data is imported.
+
+```{r}
+library(ggplot2); library(caret); library(randomForest); set.seed(4231);
+training <- read.csv("C:/sets/pml-training .csv", na.strings=c("NA","#DIV/0!", ""))
+testing <- read.csv("C:/sets/pml-testing .csv", na.strings=c("NA","#DIV/0!", ""))
+
+
+```
+we use the following code to see the unmatched column names.
+```{r}
+# identify is the column names between training and testing are same or not
+sameName <- colnames(testing) == colnames(training)
+# display the unmatched column names
+colnames(training)[sameName==FALSE]
+```
+```{r}
+colnames(testing)[sameName==FALSE]
+```
+check the dimensions of the data set
+```{r}
+dimTr <- dim(training); dimTe <- dim(testing)
+head(colnames(training))
+training <- training[,6:dimTr[2]]
+testing <- testing[,6:dimTe[2]]
+# create a vector of logicals for whether the predictor is a near zero variance predictor
+uselessCol <- nearZeroVar(training, saveMetrics=TRUE)$nzv
+for ( i in 1:dim(training)[2]  )
+  if (sum(is.na(training[,i]))/dimTr[1] > 0.8)
+    uselessCol[i] <- TRUE
+# delete the useless columns
+training <- training[, uselessCol==FALSE]
+testing <- testing[, uselessCol==FALSE]
+# new datasets dimensions:
+dim(training)
+dim(testing)
+```
+Cross-Validation
+====================
+Now partitioning the data for cross validation.Taking 75% for training and 25% for testing.
+```{r}
+# split data into two parts
+inTrain <- createDataPartition(y=training$classe, p=0.75, list=FALSE)
+dataTrain <- training[inTrain,]
+dataCV <- training[-inTrain,]
+
+```
+Plotting the Data
+=======================
+Plot the training data, we can find the the pattern is very similar and hard to distinguish among those classes A~E, so a robust training algorithm is needed.
+```{r}
+qplot(accel_forearm_x, accel_forearm_y, col=classe, data=dataTrain)
+
+```
+
+
+Algorithm models used
+==========================
+Applying different models and then chosing the best performance model
+
+Decision Tree
+============================
+```{r}
+library(rpart)
+library(rpart.plot)
+modelFit <- rpart(classe ~ ., data=dataTrain, method="class")
+predictions1 <- predict(modelFit, dataCV, type = "class")
+confusionMatrix(predictions1, dataCV$classe)
+rpart.plot(modelFit)
+```
+
+Random Forest
+======================
+
+```{r}
+modFit <- randomForest(classe ~ ., data=dataTrain)
+prediction <- predict(modFit, dataCV, type = "class")
+confusionMatrix(prediction, dataCV$classe)
+
+```
+Prediction model to be used
+==================================================
+Random Forest algorithm performed better than Decision Tree.
+Accuracy for Random Forest model was 0.9978 compared to 
+Decision Tree model with accuracy 0.7675.
+The expected out-of-sample error is estimated at 0.005.The Random Forests model is chosen.
+
+Final Prediction on Test data
+================================
+The chosen model, random forest is now applied on the testing set to get the final prediction.
+```{r}
+final_prediction <- predict(modFit, testing, type="class")
+final_prediction
+```
